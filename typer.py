@@ -22,8 +22,9 @@ def type_with_delay(text, delay=0.1):
 
 # Example usage
 if __name__ == "__main__":
-    # Your paragraph here
-    paragraph = """The only people for me are the mad ones, the ones who are mad to live, mad to talk, mad to be saved, desirous of everything at the same time, the ones who never yawn or say a commonplace thing, but burn, burn, burn, like fabulous yellow Roman candles exploding like spiders across the stars, and in the middle, you see the blue center-light pop, and everybody goes ahh..."""
+    # Read the text from the file
+    with open('text.txt', 'r') as f:
+        paragraph = f.read()
     
     # Adjust delay as needed (in seconds)
     typing_delay = 0.05  # 50 milliseconds between each character
