@@ -1,7 +1,7 @@
 import pyautogui
 import time
 
-def type_with_delay(text, delay=0.1):
+def type_with_delay(text, delay=0.01):
     """
     Types text one character at a time with a delay between each character.
     
