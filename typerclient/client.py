@@ -4,32 +4,38 @@ import requests
 import sys
 
 # ─── CONFIG ─────────────────────────────────────────
-SERVER_URL   = "https://automatic-typing-bot.onrender.com"  # NO trailing /
-POLL_INTERVAL = 1.5
+SERVER_URL    = "https://automatic-typing-bot.onrender.com"
+POLL_INTERVAL = 2        # normal polling
 TYPING_DELAY  = 0.01
 COUNTDOWN     = 4
 
+MAX_BACKOFF   = 30       # max retry delay (seconds)
+
 pyautogui.FAILSAFE = True
+
+# reuse connection (IMPORTANT for long run)
+session = requests.Session()
 
 
 def poll_once(last_id):
     try:
-        r = requests.get(
+        r = session.get(
             f"{SERVER_URL}/poll",
             params={"last_id": last_id},
-            timeout=5
+            timeout=10
         )
         r.raise_for_status()
         data = r.json()
         return data if data.get("available") else None
-    except Exception as e:
-        print(f"[WARN] Poll error: {e}")
-        return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"\n[WARN] Connection issue: {e}")
+        return "ERROR"
 
 
 def acknowledge(text_id):
     try:
-        requests.post(
+        session.post(
             f"{SERVER_URL}/ack",
             json={"id": text_id},
             timeout=5
@@ -52,18 +58,33 @@ def countdown(seconds):
 
 
 def main():
-    print("=== TYPER BOT STARTED ===\n")
+    print("=" * 50)
+    print("   TYPER BOT — ALWAYS ON MODE 🚀")
+    print(f"   Server: {SERVER_URL}")
+    print("=" * 50)
 
     last_id = 0
+    backoff = 2   # start retry delay
 
     while True:
-        payload = poll_once(last_id)
+        result = poll_once(last_id)
 
-        if payload:
-            text = payload["text"]
-            text_id = payload["id"]
+        # ─── ERROR HANDLING (Render sleep / network issues) ───
+        if result == "ERROR":
+            print(f"[INFO] Retrying in {backoff}s...")
+            time.sleep(backoff)
+            backoff = min(backoff * 2, MAX_BACKOFF)
+            continue
 
-            print(f"\n[✓] Received text (id={text_id})")
+        # reset backoff if successful
+        backoff = 2
+
+        # ─── NEW TEXT RECEIVED ───
+        if result:
+            text = result["text"]
+            text_id = result["id"]
+
+            print(f"\n[✓] Received text (id={text_id}, len={len(text)})")
 
             acknowledge(text_id)
             last_id = text_id
@@ -71,11 +92,14 @@ def main():
             countdown(COUNTDOWN)
 
             print("[→] Typing...")
+            start = time.time()
+
             type_text(text)
 
-            print("[✓] Done\n")
+            print(f"[✓] Done in {time.time() - start:.1f}s\n")
+
         else:
-            print(".", end="", flush=True)
+            # silent idle (no spam dots)
             time.sleep(POLL_INTERVAL)
 
 
@@ -83,5 +107,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nStopped")
+        print("\n[Stopped]")
         sys.exit(0)

@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const app = express();
 
 // ─── In-memory store ────────────────────────────────
@@ -7,6 +8,8 @@ let textId = 0;
 
 // ─── Middleware ────────────────────────────────────
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -16,9 +19,9 @@ app.use((req, res, next) => {
 
 // ─── Routes ────────────────────────────────────────
 
-// Root (for testing)
+// Root → serve HTML UI
 app.get('/', (req, res) => {
-  res.json({ message: "Server running 🚀" });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // POST /send
