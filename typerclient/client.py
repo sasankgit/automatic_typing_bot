@@ -3,18 +3,16 @@ import time
 import requests
 import sys
 
-# ─── CONFIG ───────────────────────────────────────────────────────────────────
-SERVER_URL   = "https://automatic-typing-bot.onrender.com"   # ← Replace with your Vercel URL
-POLL_INTERVAL = 1.5    # Seconds between polls
-TYPING_DELAY  = 0.01   # Seconds between each character
-COUNTDOWN     = 4      # Seconds to move cursor to target window after text arrives
-# ──────────────────────────────────────────────────────────────────────────────
+# ─── CONFIG ─────────────────────────────────────────
+SERVER_URL   = "https://automatic-typing-bot.onrender.com"  # NO trailing /
+POLL_INTERVAL = 1.5
+TYPING_DELAY  = 0.01
+COUNTDOWN     = 4
 
-pyautogui.FAILSAFE = True   # Move mouse to top-left corner to abort typing
+pyautogui.FAILSAFE = True
 
 
-def poll_once(last_id: int) -> dict | None:
-    """Returns new payload dict if available, else None."""
+def poll_once(last_id):
     try:
         r = requests.get(
             f"{SERVER_URL}/poll",
@@ -24,16 +22,12 @@ def poll_once(last_id: int) -> dict | None:
         r.raise_for_status()
         data = r.json()
         return data if data.get("available") else None
-    except requests.exceptions.ConnectionError:
-        print("[ERROR] Cannot reach server. Check SERVER_URL and your connection.")
-        return None
     except Exception as e:
         print(f"[WARN] Poll error: {e}")
         return None
 
 
-def acknowledge(text_id: int):
-    """Tell server this payload was received so it won't be sent again."""
+def acknowledge(text_id):
     try:
         requests.post(
             f"{SERVER_URL}/ack",
@@ -44,35 +38,21 @@ def acknowledge(text_id: int):
         print(f"[WARN] Ack failed: {e}")
 
 
-def type_text(text: str):
-    """Type text character by character using pyautogui."""
+def type_text(text):
     for char in text:
-        # pyautogui.write() can't handle special unicode chars,
-        # so fall back to typewrite for ASCII and hotkey for others
-        try:
-            pyautogui.write(char, interval=0)
-        except Exception:
-            pyautogui.hotkey('shift', char) if char.isupper() else None
+        pyautogui.write(char)
         time.sleep(TYPING_DELAY)
 
 
-def countdown(seconds: int, message: str):
-    """Print a live countdown in the terminal."""
+def countdown(seconds):
     for i in range(seconds, 0, -1):
-        print(f"\r{message} {i}s ...", end="", flush=True)
+        print(f"\rSwitch window in {i}s...", end="", flush=True)
         time.sleep(1)
     print()
 
 
 def main():
-    print("=" * 55)
-    print("  TYPER BOT — Remote Keystroke Client")
-    print(f"  Server : {SERVER_URL}")
-    print(f"  Poll   : every {POLL_INTERVAL}s")
-    print(f"  Speed  : {TYPING_DELAY}s / char")
-    print("=" * 55)
-    print("Listening for incoming text...\n")
-    print("TIP: Move mouse to top-left corner to abort typing (failsafe).\n")
+    print("=== TYPER BOT STARTED ===\n")
 
     last_id = 0
 
@@ -80,25 +60,21 @@ def main():
         payload = poll_once(last_id)
 
         if payload:
-            text    = payload["text"]
+            text = payload["text"]
             text_id = payload["id"]
-            chars   = len(text)
 
-            print(f"\n[✓] New payload received (id={text_id}, {chars} chars)")
+            print(f"\n[✓] Received text (id={text_id})")
+
             acknowledge(text_id)
             last_id = text_id
 
-            countdown(COUNTDOWN, "→ Switch to your target window! Starting in")
+            countdown(COUNTDOWN)
 
-            print(f"[→] Typing {chars} characters...")
-            start = time.time()
+            print("[→] Typing...")
             type_text(text)
-            elapsed = time.time() - start
 
-            print(f"[✓] Done! Typed {chars} chars in {elapsed:.1f}s")
-            print("\nListening for next payload...\n")
+            print("[✓] Done\n")
         else:
-            # Idle indicator — dots cycling
             print(".", end="", flush=True)
             time.sleep(POLL_INTERVAL)
 
@@ -107,5 +83,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n[Stopped] Typer bot shut down.")
+        print("\nStopped")
         sys.exit(0)

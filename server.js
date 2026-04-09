@@ -1,41 +1,74 @@
 const express = require('express');
 const app = express();
 
-app.use(express.json());
-
+// ─── In-memory store ────────────────────────────────
 let pendingText = null;
 let textId = 0;
 
+// ─── Middleware ────────────────────────────────────
+app.use(express.json());
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+// ─── Routes ────────────────────────────────────────
+
+// Root (for testing)
 app.get('/', (req, res) => {
   res.json({ message: "Server running 🚀" });
 });
 
+// POST /send
 app.post('/send', (req, res) => {
   const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'No text' });
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'No text provided' });
+  }
 
   textId++;
-  pendingText = { id: textId, text };
+  pendingText = {
+    id: textId,
+    text: text.trim(),
+    timestamp: Date.now()
+  };
 
+  console.log(`[SEND] id=${textId} len=${text.length}`);
   res.json({ success: true, id: textId });
 });
 
+// GET /poll
 app.get('/poll', (req, res) => {
   const lastId = parseInt(req.query.last_id || '0');
 
   if (pendingText && pendingText.id > lastId) {
-    return res.json({ available: true, ...pendingText });
+    return res.json({
+      available: true,
+      id: pendingText.id,
+      text: pendingText.text
+    });
   }
 
   res.json({ available: false });
 });
 
+// POST /ack
 app.post('/ack', (req, res) => {
-  if (pendingText && pendingText.id === req.body.id) {
+  const { id } = req.body;
+
+  if (pendingText && pendingText.id === id) {
+    console.log(`[ACK] id=${id} cleared`);
     pendingText = null;
   }
+
   res.json({ success: true });
 });
 
+// ─── Start Server ──────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Running on ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Typer server running on port ${PORT}`);
+});
