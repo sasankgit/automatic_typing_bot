@@ -27,6 +27,6 @@ if __name__ == "__main__":
         paragraph = f.read()
     
     # Adjust delay as needed (in seconds)
-    typing_delay = 0.05  # 50 milliseconds between each character
+    typing_delay = 0.01  # 50 milliseconds between each character
     
     type_with_delay(paragraph, typing_delay)

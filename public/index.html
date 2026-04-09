@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TYPER — Remote Keystroke Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --border: #1e1e2e;
+      --accent: #00ff88;
+      --accent-dim: rgba(0,255,136,0.12);
+      --accent-glow: rgba(0,255,136,0.35);
+      --text: #e2e2f0;
+      --muted: #5a5a7a;
+      --danger: #ff4466;
+      --warning: #ffaa00;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      overflow-x: hidden;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 780px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      text-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .tagline {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-left: 1px solid var(--border);
+      padding-left: 1rem;
+    }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.72rem;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: all 0.3s;
+    }
+
+    .status-dot.active {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.error { background: var(--danger); }
+    .status-dot.sent  { background: var(--warning); box-shadow: 0 0 8px rgba(255,170,0,0.4); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .status-text { color: var(--muted); flex: 1; }
+    .status-id   { color: var(--muted); font-size: 0.65rem; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.015);
+    }
+
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+
+    .card-title {
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-left: 0.4rem;
+    }
+
+    /* Textarea */
+    textarea {
+      width: 100%;
+      min-height: 300px;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      padding: 1.4rem 1.4rem;
+      resize: vertical;
+      caret-color: var(--accent);
+    }
+
+    textarea::placeholder { color: var(--muted); opacity: 0.6; }
+
+    /* Footer bar */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.9rem 1.2rem;
+      border-top: 1px solid var(--border);
+      gap: 1rem;
+    }
+
+    .char-count {
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+
+    .actions { display: flex; gap: 0.7rem; }
+
+    .btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 0.55rem 1.2rem;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary:hover::before { opacity: 0.15; }
+    .btn-primary:active { transform: scale(0.97); }
+
+    .btn-primary:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .btn-primary:disabled::before { display: none; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem 1.3rem;
+      font-size: 0.78rem;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
+      z-index: 100;
+      max-width: 320px;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--accent); }
+    .toast.error   { border-color: var(--danger); }
+
+    .toast-icon { font-size: 1rem; }
+
+    /* History */
+    .history {
+      margin-top: 1.5rem;
+    }
+
+    .history-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+      padding-left: 2px;
+    }
+
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.7rem 1rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .history-item:hover { border-color: var(--muted); color: var(--text); }
+    .history-item-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-item-meta { flex-shrink: 0; font-size: 0.65rem; opacity: 0.6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">TYPER</div>
+      <div class="tagline">Remote Keystroke Control</div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Idle — waiting for input</span>
+      <span class="status-id" id="statusId"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="card-title">text-payload.txt — editor</span>
+      </div>
+
+      <textarea
+        id="textInput"
+        placeholder="// Paste your code or text here...&#10;// When you click SEND, the Python typer bot&#10;// will automatically begin typing it remotely."
+        spellcheck="false"
+      ></textarea>
+
+      <div class="card-footer">
+        <span class="char-count" id="charCount">0 chars</span>
+        <div class="actions">
+          <button class="btn btn-ghost" onclick="clearInput()">CLEAR</button>
+          <button class="btn btn-primary" id="sendBtn" onclick="sendText()">SEND →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="history" id="historySection" style="display:none">
+      <div class="history-label">// Recent transmissions</div>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <span class="toast-icon" id="toastIcon"></span>
+    <span id="toastMsg"></span>
+  </div>
+
+  <script>
+    const textarea = document.getElementById('textInput');
+    const sendBtn  = document.getElementById('sendBtn');
+    const charCount= document.getElementById('charCount');
+    const statusDot= document.getElementById('statusDot');
+    const statusText=document.getElementById('statusText');
+    const statusId = document.getElementById('statusId');
+    const history  = [];
+
+    textarea.addEventListener('input', () => {
+      const n = textarea.value.length;
+      charCount.textContent = n.toLocaleString() + ' char' + (n !== 1 ? 's' : '');
+    });
+
+    // Keyboard shortcut: Ctrl+Enter to send
+    textarea.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendText();
+    });
+
+    function setStatus(type, text, id = '') {
+      statusDot.className = 'status-dot ' + type;
+      statusText.textContent = text;
+      statusId.textContent = id ? `#${id}` : '';
+    }
+
+    async function sendText() {
+      const text = textarea.value.trim();
+      if (!text) { showToast('error', '⚠', 'Nothing to send!'); return; }
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'SENDING...';
+      setStatus('', 'Transmitting payload...');
+
+      try {
+        const res = await fetch('/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          setStatus('sent', `Queued — awaiting Python client pickup`, data.id);
+          showToast('success', '✓', `Transmitted! Bot will type ${text.length} chars.`);
+          addHistory(text, data.id);
+          textarea.value = '';
+          charCount.textContent = '0 chars';
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (err) {
+        setStatus('error', 'Transmission failed');
+        showToast('error', '✕', err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'SEND →';
+      }
+    }
+
+    function clearInput() {
+      textarea.value = '';
+      charCount.textContent = '0 chars';
+      textarea.focus();
+    }
+
+    function addHistory(text, id) {
+      history.unshift({ text, id, time: new Date() });
+      if (history.length > 5) history.pop();
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const section = document.getElementById('historySection');
+      const list    = document.getElementById('historyList');
+      section.style.display = 'block';
+      list.innerHTML = history.map(h => `
+        <div class="history-item" onclick="restoreFromHistory(${h.id})">
+          <span class="history-item-text">${escHtml(h.text.slice(0, 80))}${h.text.length > 80 ? '…' : ''}</span>
+          <span class="history-item-meta">#${h.id} · ${h.time.toLocaleTimeString()}</span>
+        </div>
+      `).join('');
+    }
+
+    function restoreFromHistory(id) {
+      const item = history.find(h => h.id === id);
+      if (item) {
+        textarea.value = item.text;
+        charCount.textContent = item.text.length.toLocaleString() + ' chars';
+        textarea.focus();
+      }
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    let toastTimer;
+    function showToast(type, icon, msg) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastIcon').textContent = icon;
+      document.getElementById('toastMsg').textContent = msg;
+      t.className = 'toast ' + type + ' show';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.className = 'toast ' + type, 3500);
+    }
+  </script>
+</body>
+</html>
