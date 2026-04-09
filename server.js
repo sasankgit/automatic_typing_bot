@@ -1,53 +1,104 @@
-const express = require('express');
-const cors = require('cors');
+const http = require('http');
+const fs   = require('fs');
 const path = require('path');
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
-
+// ─── In-memory store ────────────────────────────────────────────────
 let pendingText = null;
-let textId = 0;
+let textId      = 0;
 
-// Web UI
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// ─── Helpers ────────────────────────────────────────────────────────
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => (data += chunk));
+    req.on('end',  () => resolve(data));
+    req.on('error', reject);
+  });
+}
 
-// Client sends text from the web UI
-app.post('/send', (req, res) => {
-  const { text } = req.body;
-  if (!text || !text.trim()) {
-    return res.status(400).json({ error: 'No text provided' });
+function json(res, statusCode, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(statusCode, {
+    'Content-Type' : 'application/json',
+    'Access-Control-Allow-Origin' : '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  });
+  res.end(body);
+}
+
+function serveFile(res, filePath, contentType) {
+  fs.readFile(filePath, (err, data) => {
+    if (err) { res.writeHead(404); res.end('Not found'); return; }
+    res.writeHead(200, { 'Content-Type': contentType });
+    res.end(data);
+  });
+}
+
+// ─── Router ─────────────────────────────────────────────────────────
+const server = http.createServer(async (req, res) => {
+  const url    = new URL(req.url, `http://${req.headers.host}`);
+  const route  = url.pathname;
+  const method = req.method;
+
+  // CORS preflight
+  if (method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin' : '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    return res.end();
   }
-  textId++;
-  pendingText = { id: textId, text: text.trim(), timestamp: Date.now() };
-  console.log(`[${new Date().toISOString()}] New text queued (id=${textId}), length=${text.length}`);
-  res.json({ success: true, id: textId });
-});
 
-// Python client polls this endpoint
-app.get('/poll', (req, res) => {
-  const lastId = parseInt(req.query.last_id || '0');
-  if (pendingText && pendingText.id > lastId) {
-    res.json({ available: true, id: pendingText.id, text: pendingText.text });
-  } else {
-    res.json({ available: false });
+  // GET / → serve UI
+  if (method === 'GET' && (route === '/' || route === '/index.html')) {
+    return serveFile(res, path.join(__dirname, 'public', 'index.html'), 'text/html');
   }
-});
 
-// Python client confirms it received the text
-app.post('/ack', (req, res) => {
-  const { id } = req.body;
-  if (pendingText && pendingText.id === id) {
-    pendingText = null;
-    console.log(`[${new Date().toISOString()}] Text id=${id} acknowledged and cleared`);
+  // POST /send → accept text from web UI
+  if (method === 'POST' && route === '/send') {
+    try {
+      const raw  = await readBody(req);
+      const body = JSON.parse(raw);
+      if (!body.text || !body.text.trim()) return json(res, 400, { error: 'No text provided' });
+      textId++;
+      pendingText = { id: textId, text: body.text.trim(), timestamp: Date.now() };
+      console.log(`[SEND] id=${textId} len=${body.text.length}`);
+      return json(res, 200, { success: true, id: textId });
+    } catch (e) {
+      return json(res, 400, { error: 'Invalid JSON' });
+    }
   }
-  res.json({ success: true });
+
+  // GET /poll → Python client polls here
+  if (method === 'GET' && route === '/poll') {
+    const lastId = parseInt(url.searchParams.get('last_id') || '0');
+    if (pendingText && pendingText.id > lastId) {
+      return json(res, 200, { available: true, id: pendingText.id, text: pendingText.text });
+    }
+    return json(res, 200, { available: false });
+  }
+
+  // POST /ack → Python confirms receipt, clear queue
+  if (method === 'POST' && route === '/ack') {
+    try {
+      const raw  = await readBody(req);
+      const body = JSON.parse(raw);
+      if (pendingText && pendingText.id === body.id) {
+        console.log(`[ACK]  id=${body.id} cleared`);
+        pendingText = null;
+      }
+      return json(res, 200, { success: true });
+    } catch (e) {
+      return json(res, 400, { error: 'Invalid JSON' });
+    }
+  }
+
+  // 404
+  res.writeHead(404);
+  res.end('Not found');
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Typer server running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Typer server → http://localhost:${PORT}`));
