@@ -4,7 +4,7 @@ import requests
 import sys
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
-SERVER_URL   = "https://your-app.vercel.app"   # ← Replace with your Vercel URL
+SERVER_URL   = "https://automatic-typing-bn9gph0b8-neverlos-projects.vercel.app/"   # ← Replace with your Vercel URL
 POLL_INTERVAL = 1.5    # Seconds between polls
 TYPING_DELAY  = 0.01   # Seconds between each character
 COUNTDOWN     = 4      # Seconds to move cursor to target window after text arrives
