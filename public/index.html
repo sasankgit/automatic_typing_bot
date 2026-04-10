@@ -35,7 +35,6 @@
       overflow-x: hidden;
     }
 
-    /* Subtle grid background */
     body::before {
       content: '';
       position: fixed;
@@ -55,7 +54,6 @@
       max-width: 780px;
     }
 
-    /* Header */
     .header {
       display: flex;
       align-items: baseline;
@@ -81,7 +79,52 @@
       padding-left: 1rem;
     }
 
-    /* Status bar */
+    /* Client ID row */
+    .id-row {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .id-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .id-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+      width: 80px;
+      outline: none;
+      padding: 0.1rem 0.3rem;
+      text-align: center;
+      -moz-appearance: textfield;
+    }
+
+    .id-input::-webkit-outer-spin-button,
+    .id-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .id-input:focus { border-bottom-color: var(--accent); }
+
+    .id-hint {
+      font-size: 0.65rem;
+      color: var(--muted);
+      opacity: 0.7;
+    }
+
     .status-bar {
       display: flex;
       align-items: center;
@@ -95,32 +138,22 @@
     }
 
     .status-dot {
-      width: 7px;
-      height: 7px;
+      width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--muted);
       flex-shrink: 0;
       transition: all 0.3s;
     }
 
-    .status-dot.active {
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent-glow);
-      animation: pulse 2s infinite;
-    }
+    .status-dot.active { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); animation: pulse 2s infinite; }
+    .status-dot.error  { background: var(--danger); }
+    .status-dot.sent   { background: var(--warning); box-shadow: 0 0 8px rgba(255,170,0,0.4); }
 
-    .status-dot.error { background: var(--danger); }
-    .status-dot.sent  { background: var(--warning); box-shadow: 0 0 8px rgba(255,170,0,0.4); }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     .status-text { color: var(--muted); flex: 1; }
     .status-id   { color: var(--muted); font-size: 0.65rem; }
 
-    /* Card */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -149,7 +182,6 @@
       margin-left: 0.4rem;
     }
 
-    /* Textarea */
     textarea {
       width: 100%;
       min-height: 300px;
@@ -160,14 +192,13 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.85rem;
       line-height: 1.7;
-      padding: 1.4rem 1.4rem;
+      padding: 1.4rem;
       resize: vertical;
       caret-color: var(--accent);
     }
 
     textarea::placeholder { color: var(--muted); opacity: 0.6; }
 
-    /* Footer bar */
     .card-footer {
       display: flex;
       align-items: center;
@@ -177,11 +208,7 @@
       gap: 1rem;
     }
 
-    .char-count {
-      font-size: 0.68rem;
-      color: var(--muted);
-    }
-
+    .char-count { font-size: 0.68rem; color: var(--muted); }
     .actions { display: flex; gap: 0.7rem; }
 
     .btn {
@@ -222,20 +249,12 @@
 
     .btn-primary:hover::before { opacity: 0.15; }
     .btn-primary:active { transform: scale(0.97); }
-
-    .btn-primary:disabled {
-      background: var(--border);
-      color: var(--muted);
-      cursor: not-allowed;
-    }
-
+    .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
     .btn-primary:disabled::before { display: none; }
 
-    /* Toast */
     .toast {
       position: fixed;
-      bottom: 2rem;
-      right: 2rem;
+      bottom: 2rem; right: 2rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -251,16 +270,12 @@
       max-width: 320px;
     }
 
-    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.show  { transform: translateY(0); opacity: 1; }
     .toast.success { border-color: var(--accent); }
     .toast.error   { border-color: var(--danger); }
+    .toast-icon  { font-size: 1rem; }
 
-    .toast-icon { font-size: 1rem; }
-
-    /* History */
-    .history {
-      margin-top: 1.5rem;
-    }
+    .history { margin-top: 1.5rem; }
 
     .history-label {
       font-size: 0.65rem;
@@ -297,6 +312,20 @@
     <div class="header">
       <div class="logo">TYPER</div>
       <div class="tagline">Remote Keystroke Control</div>
+    </div>
+
+    <!-- Client ID row -->
+    <div class="id-row">
+      <span class="id-label">// Client ID</span>
+      <input
+        type="number"
+        id="clientIdInput"
+        class="id-input"
+        value="1"
+        min="1"
+        placeholder="ID"
+      />
+      <span class="id-hint">Must match the CLIENT_ID set in your Python bot</span>
     </div>
 
     <div class="status-bar">
@@ -340,23 +369,29 @@
   </div>
 
   <script>
-    const textarea = document.getElementById('textInput');
-    const sendBtn  = document.getElementById('sendBtn');
-    const charCount= document.getElementById('charCount');
-    const statusDot= document.getElementById('statusDot');
-    const statusText=document.getElementById('statusText');
-    const statusId = document.getElementById('statusId');
-    const history  = [];
+    const textarea      = document.getElementById('textInput');
+    const sendBtn       = document.getElementById('sendBtn');
+    const charCount     = document.getElementById('charCount');
+    const statusDot     = document.getElementById('statusDot');
+    const statusText    = document.getElementById('statusText');
+    const statusId      = document.getElementById('statusId');
+    const clientIdInput = document.getElementById('clientIdInput');
+    const history       = [];
 
     textarea.addEventListener('input', () => {
       const n = textarea.value.length;
       charCount.textContent = n.toLocaleString() + ' char' + (n !== 1 ? 's' : '');
     });
 
-    // Keyboard shortcut: Ctrl+Enter to send
     textarea.addEventListener('keydown', e => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') sendText();
     });
+
+    function getClientId() {
+      const val = parseInt(clientIdInput.value);
+      if (isNaN(val) || val < 1) return null;
+      return val;
+    }
 
     function setStatus(type, text, id = '') {
       statusDot.className = 'status-dot ' + type;
@@ -368,6 +403,9 @@
       const text = textarea.value.trim();
       if (!text) { showToast('error', '⚠', 'Nothing to send!'); return; }
 
+      const clientId = getClientId();
+      if (!clientId) { showToast('error', '⚠', 'Enter a valid Client ID first!'); return; }
+
       sendBtn.disabled = true;
       sendBtn.textContent = 'SENDING...';
       setStatus('', 'Transmitting payload...');
@@ -376,14 +414,14 @@
         const res = await fetch('/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
+          body: JSON.stringify({ text, client_id: clientId })
         });
         const data = await res.json();
 
         if (data.success) {
-          setStatus('sent', `Queued — awaiting Python client pickup`, data.id);
-          showToast('success', '✓', `Transmitted! Bot will type ${text.length} chars.`);
-          addHistory(text, data.id);
+          setStatus('sent', `Queued for client #${clientId} — awaiting pickup`, data.id);
+          showToast('success', '✓', `Sent to client #${clientId} — ${text.length} chars queued.`);
+          addHistory(text, data.id, clientId);
           textarea.value = '';
           charCount.textContent = '0 chars';
         } else {
@@ -404,8 +442,8 @@
       textarea.focus();
     }
 
-    function addHistory(text, id) {
-      history.unshift({ text, id, time: new Date() });
+    function addHistory(text, id, clientId) {
+      history.unshift({ text, id, clientId, time: new Date() });
       if (history.length > 5) history.pop();
       renderHistory();
     }
@@ -417,7 +455,7 @@
       list.innerHTML = history.map(h => `
         <div class="history-item" onclick="restoreFromHistory(${h.id})">
           <span class="history-item-text">${escHtml(h.text.slice(0, 80))}${h.text.length > 80 ? '…' : ''}</span>
-          <span class="history-item-meta">#${h.id} · ${h.time.toLocaleTimeString()}</span>
+          <span class="history-item-meta">client #${h.clientId} · #${h.id} · ${h.time.toLocaleTimeString()}</span>
         </div>
       `).join('');
     }
@@ -439,7 +477,7 @@
     function showToast(type, icon, msg) {
       const t = document.getElementById('toast');
       document.getElementById('toastIcon').textContent = icon;
-      document.getElementById('toastMsg').textContent = msg;
+      document.getElementById('toastMsg').textContent  = msg;
       t.className = 'toast ' + type + ' show';
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => t.className = 'toast ' + type, 3500);

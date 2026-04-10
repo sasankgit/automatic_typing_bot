@@ -2,11 +2,12 @@ const express = require('express');
 const path = require('path');
 const app = express();
 
-// ─── In-memory store ────────────────────────────────
-let pendingText = null;
-let textId = 0;
+// ─── In-memory store (keyed by client_id) ───────────
+// pendingTexts[clientId] = { id, text, timestamp }
+const pendingTexts = {};
+let globalTextId = 0;
 
-// ─── Middleware ────────────────────────────────────
+// ─── Middleware ─────────────────────────────────────
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -17,60 +18,76 @@ app.use((req, res, next) => {
   next();
 });
 
-// ─── Routes ────────────────────────────────────────
+// ─── Routes ─────────────────────────────────────────
 
-// Root → serve HTML UI
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// POST /send
+// POST /send  — body: { text, client_id }
 app.post('/send', (req, res) => {
-  const { text } = req.body;
+  const { text, client_id } = req.body;
 
   if (!text || !text.trim()) {
     return res.status(400).json({ error: 'No text provided' });
   }
 
-  textId++;
-  pendingText = {
-    id: textId,
+  if (client_id === undefined || client_id === null || client_id === '') {
+    return res.status(400).json({ error: 'client_id is required' });
+  }
+
+  const cid = parseInt(client_id);
+  if (isNaN(cid)) {
+    return res.status(400).json({ error: 'client_id must be a number' });
+  }
+
+  globalTextId++;
+  pendingTexts[cid] = {
+    id: globalTextId,
     text: text.trim(),
     timestamp: Date.now()
   };
 
-  console.log(`[SEND] id=${textId} len=${text.length}`);
-  res.json({ success: true, id: textId });
+  console.log(`[SEND] client_id=${cid} id=${globalTextId} len=${text.length}`);
+  res.json({ success: true, id: globalTextId });
 });
 
-// GET /poll
+// GET /poll?last_id=N&client_id=N
 app.get('/poll', (req, res) => {
-  const lastId = parseInt(req.query.last_id || '0');
+  const lastId   = parseInt(req.query.last_id   || '0');
+  const clientId = parseInt(req.query.client_id || '0');
 
-  if (pendingText && pendingText.id > lastId) {
+  if (isNaN(clientId) || clientId === 0) {
+    return res.status(400).json({ error: 'client_id is required' });
+  }
+
+  const pending = pendingTexts[clientId];
+
+  if (pending && pending.id > lastId) {
     return res.json({
       available: true,
-      id: pendingText.id,
-      text: pendingText.text
+      id: pending.id,
+      text: pending.text
     });
   }
 
   res.json({ available: false });
 });
 
-// POST /ack
+// POST /ack  — body: { id, client_id }
 app.post('/ack', (req, res) => {
-  const { id } = req.body;
+  const { id, client_id } = req.body;
+  const cid = parseInt(client_id);
 
-  if (pendingText && pendingText.id === id) {
-    console.log(`[ACK] id=${id} cleared`);
-    pendingText = null;
+  if (pendingTexts[cid] && pendingTexts[cid].id === id) {
+    console.log(`[ACK] client_id=${cid} id=${id} cleared`);
+    delete pendingTexts[cid];
   }
 
   res.json({ success: true });
 });
 
-// ─── Start Server ──────────────────────────────────
+// ─── Start ───────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Typer server running on port ${PORT}`);
